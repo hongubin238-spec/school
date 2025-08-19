@@ -27,7 +27,7 @@ app.add_middleware(
 from fastapi.staticfiles import StaticFiles  # (redundant import is harmless)
 import pathlib as _pl
 
-STATIC_DIR = _pl.Path("statics")
+STATIC_DIR = _pl.Path("static")
 STATIC_DIR.mkdir(exist_ok=True, parents=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -145,7 +145,7 @@ def root():
 # Optional: force HTML MIME if needed (debug)
 @app.get("/client")
 def get_client():
-    return FileResponse("statics/client.html", media_type="text/html")
+    return FileResponse("static/client.html", media_type="text/html")
 
 
 # -------------------- Teacher: Excel upload --------------------
