@@ -1,5 +1,5 @@
     # main.py
-    import os, base64, tempfile, pathlib
+import os, base64, tempfile, pathlib
     from fastapi import FastAPI, UploadFile, File
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse, HTMLResponse
@@ -16,10 +16,10 @@
         allow_methods=["*"], allow_headers=["*"],
     )
 
-    # Serve static files (client.html later)
-    STATIC_DIR = pathlib.Path("static")
-    STATIC_DIR.mkdir(exist_ok=True, parents=True)
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    # Serve static files (client.html)
+STATIC_DIR = pathlib.Path("statics")
+STATIC_DIR.mkdir(exist_ok=True, parents=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     # OpenAI client
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
@@ -53,7 +53,7 @@
     def tts_openai_ko_mp3(text: str) -> bytes:
         url = "https://api.openai.com/v1/audio/speech"
         headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
-        payload = {"model": "gpt-4o-mini-tts", "voice": "alloy", "input": text, "format": "mp3"}
+        payload = {"model": "tts-1", "voice": "alloy", "input": text, "format": "mp3"}
         r = requests.post(url, headers=headers, json=payload, timeout=120)
         r.raise_for_status()
         return r.content
@@ -84,3 +84,14 @@
         finally:
             try: os.remove(tmp_path)
             except: pass
+
+@app.post("/api/ask-text")
+async def ask_text(q: str):
+    answer = answer_with_gpt(q)
+    mp3_bytes = tts_openai_ko_mp3(answer)
+    audio_b64 = base64.b64encode(mp3_bytes).decode("utf-8")
+    return JSONResponse({
+        "answer": answer,
+        "audio_b64": audio_b64,
+        "mime": "audio/mpeg"
+    })
