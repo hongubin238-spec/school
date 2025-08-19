@@ -1,0 +1,5 @@
+{
+  "appId": "com.example.schoolvoicebot",
+  "appName": "School Voice Bot",
+  "webDir": "npm i @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios"
+}

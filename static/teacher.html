@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teacher Uploader</title>
+  <style>
+    body { font-family: system-ui, Arial; max-width: 720px; margin: 20px auto; line-height: 1.5; }
+    fieldset { border: 1px solid #ddd; padding: 12px; border-radius: 8px; }
+    legend { font-weight: 600; }
+    button { padding: 10px 14px; font-size: 16px; }
+    .log { white-space: pre-wrap; border: 1px solid #ddd; padding: 12px; border-radius: 8px; margin-top: 12px; }
+    .row { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h2>School Voice Bot — Teacher (Upload Excel)</h2>
+
+  <fieldset>
+    <legend>Upload .xlsx/.xls</legend>
+    <input id="file" type="file" accept=".xlsx,.xls" />
+    <div class="row">
+      <label><input type="radio" name="mode" value="replace" /> replace (overwrite)</label>
+      <label style="margin-left:12px;"><input type="radio" name="mode" value="merge" checked /> merge (append by sheet, dedup)</label>
+    </div>
+    <div class="row">
+      <button id="upload">Upload</button>
+      <button id="open-json" type="button">Open current JSON</button>
+      <button id="list-sheets" type="button">List sheets</button>
+    </div>
+  </fieldset>
+
+  <div class="log" id="log">Ready.</div>
+
+<script>
+const fileInput = document.getElementById('file');
+const uploadBtn = document.getElementById('upload');
+const openJsonBtn = document.getElementById('open-json');
+const listSheetsBtn = document.getElementById('list-sheets');
+const log = document.getElementById('log');
+
+function getMode() {
+  const el = document.querySelector('input[name="mode"]:checked');
+  return el ? el.value : 'merge'; // default to merge
+}
+
+function setLog(msg) { log.textContent = msg; }
+
+uploadBtn.onclick = async () => {
+  const f = fileInput.files?.[0];
+  if (!f) { setLog('Please choose an Excel file first.'); return; }
+
+  const mode = getMode();
+  const form = new FormData();
+  form.append('file', f, f.name);
+  form.append('mode', mode);
+
+  setLog(`Uploading (${mode}) and parsing Excel on server...`);
+  try {
+    const res = await fetch('/api/upload-excel', { method: 'POST', body: form });
+    if (!res.ok) {
+      const text = await res.text();
+      setLog(`Upload failed (HTTP ${res.status}).\n${text}`);
+      return;
+    }
+    const json = await res.json();
+    const list = await fetch('/api/sheets').then(r => r.json());
+    setLog(`OK: ${JSON.stringify(json, null, 2)}\n\nSheets: ${JSON.stringify(list.sheets, null, 2)}`);
+  } catch (err) {
+    setLog(`Network/Runtime error:\n${err}`);
+  }
+};
+
+openJsonBtn.onclick = () => window.open('/api/school-data', '_blank');
+
+listSheetsBtn.onclick = async () => {
+  try {
+    const list = await fetch('/api/sheets').then(r => r.json());
+    setLog(`Sheets: ${JSON.stringify(list.sheets, null, 2)}\n\nTip: Preview /api/sheet?name=<SheetName>&limit=20`);
+  } catch (err) {
+    setLog(`Failed to load sheets:\n${err}`);
+  }
+};
+</script>
+</body>
+</html>

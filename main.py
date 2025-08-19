@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 import requests
 import pandas as pd
+import pytz
 
 # -------------------- App --------------------
 app = FastAPI(title="School Voice Bot MVP")
@@ -23,11 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -------------------- Static mount (IMPORTANT) --------------------
-from fastapi.staticfiles import StaticFiles  # (redundant import is harmless)
-import pathlib as _pl
-
-STATIC_DIR = _pl.Path("static")
+# -------------------- Static mount --------------------
+STATIC_DIR = pathlib.Path("static")
 STATIC_DIR.mkdir(exist_ok=True, parents=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -57,10 +55,19 @@ def stt_whisper_ko(file_path: str) -> str:
 
 
 def build_system_prompt() -> str:
-    return ("You are a helpful Korean school assistant. "
-            "Answer concisely in Korean for high-school students. "
-            "Use the provided JSON context if relevant. "
-            "If information is missing, say so briefly.")
+    """System prompt with today's date (KST) included."""
+    now = datetime.datetime.now(pytz.timezone("Asia/Seoul"))
+    today_str = now.strftime("%Y-%m-%d")
+    weekday_ko = ["월", "화", "수", "목", "금", "토", "일"][now.weekday()]
+
+    return (
+        f"당신은 한국 고등학교 학생들을 돕는 교내 AI 비서입니다.\n"
+        f"오늘은 {today_str} ({weekday_ko}요일)입니다.\n"
+        "학생이 '오늘', '내일', '이번 주' 같은 날짜 표현을 쓰면 반드시 한국 시간 기준으로 계산하세요.\n"
+        "JSON 데이터에 급식표, 시간표, 학사일정이 포함되어 있으면 그 정보를 참고하세요.\n"
+        "데이터에 없는 경우는 '정보가 없습니다'라고 간단히 말하세요.\n"
+        "답변은 한국어로 간결하게 해주세요."
+    )
 
 
 def answer_with_gpt(question: str, data_hint: Optional[str] = None) -> str:
@@ -137,15 +144,19 @@ def root():
     return HTMLResponse(
         "<html><body>"
         "<h3>School Voice Bot MVP</h3>"
-        "<p>Teacher: open <code>/static/teacher.html</code> to upload Excel.</p>"
-        "<p>Student: open <code>/static/client.html</code> to ask by voice/text.</p>"
+        "<p>Teacher: open <code>/teacher</code> to upload Excel.</p>"
+        "<p>Student: open <code>/client</code> to ask by voice/text.</p>"
         "</body></html>")
 
 
-# Optional: force HTML MIME if needed (debug)
 @app.get("/client")
 def get_client():
     return FileResponse("static/client.html", media_type="text/html")
+
+
+@app.get("/teacher")
+def get_teacher():
+    return FileResponse("static/teacher.html", media_type="text/html")
 
 
 # -------------------- Teacher: Excel upload --------------------
