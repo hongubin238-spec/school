@@ -1,4 +1,4 @@
-name: Android APK (assembleDebug)
+name: Android APK (assembleDebug, stable)
 
 on:
   push:
@@ -6,42 +6,60 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-android:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ✅ 자바 11 (구형 Gradle/AGP 호환). 
-      # 만약 로그에 "JDK 17 필요"가 뜨면 17로 바꿔 다시 시도.
-      - name: Set up JDK 11
+      # Use JDK 17 (AGP 8.x 권장). 실패 시 아래 주석의 JDK 11로 바꿔 재시도 가능.
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '11'
+          java-version: '17'
 
-      - name: Set up Android SDK (API 33 & 34)
+      - name: Set up Android SDK (cmdline)
         uses: android-actions/setup-android@v3
-        with:
-          # 두 버전 모두 설치해 빌드 스크립트와 불일치 문제 회피
-          api-level: 34
-          build-tools: 34.0.0
-      - name: Install extra build-tools 33
+
+      - name: Install platforms/build-tools & accept licenses
+        shell: bash
         run: |
-          sdkmanager "platforms;android-33" "build-tools;33.0.2"
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
           yes | sdkmanager --licenses
 
-      - name: Gradle Build (assembleDebug)
+      - name: Show env & Gradle/AGP versions
+        working-directory: android
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME"
+          ./gradlew -v || true
+          grep -R --line-number "com.android.tools.build:gradle" . || true
+
+      - name: Gradle assembleDebug
         working-directory: android
         run: |
           chmod +x ./gradlew
-          # 메모리 부족/캐시 이슈 회피 플래그 포함
           ./gradlew --no-daemon --stacktrace --warning-mode all clean assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload APK (debug)
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      # 실패시 로그도 남겨서 원인 추적 쉽게
+      - name: Upload Gradle logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-logs
+          path: |
+            android/**/build/*.log
+            android/**/build/reports/**
+            android/**/outputs/logs/**
+            android/**/build/outputs/**
