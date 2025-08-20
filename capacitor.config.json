@@ -1,5 +1,10 @@
-{
-  "appId": "com.example.schoolvoicebot",
-  "appName": "School Voice Bot",
-  "webDir": "npm i @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios"
-}
+// minimal service worker: no fetch intercept
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(clients.claim());
+});
+
+// intentionally no 'fetch' handler

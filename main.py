@@ -158,6 +158,9 @@ def get_client():
 def get_teacher():
     return FileResponse("static/teacher.html", media_type="text/html")
 
+@app.get("/app")
+def get_app_client():
+    return FileResponse("static/app/client.html", media_type="text/html")
 
 # -------------------- Teacher: Excel upload --------------------
 @app.post("/api/upload-excel")
