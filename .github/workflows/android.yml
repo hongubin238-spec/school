@@ -1,4 +1,4 @@
-name: Android APK (assembleDebug, stable)
+name: Android APK (assembleDebug, force-stable)
 
 on:
   push:
@@ -10,21 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Use JDK 17 (AGP 8.x 권장). 실패 시 아래 주석의 JDK 11로 바꿔 재시도 가능.
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK (cmdline)
+      - name: Install Android SDK pieces
         uses: android-actions/setup-android@v3
 
       - name: Install platforms/build-tools & accept licenses
-        shell: bash
         run: |
           sdkmanager --install \
             "platform-tools" \
@@ -32,14 +29,20 @@ jobs:
             "build-tools;34.0.0"
           yes | sdkmanager --licenses
 
-      - name: Show env & Gradle/AGP versions
+      - name: Gradle wrapper -> 8.7 (before build)
         working-directory: android
         run: |
-          echo "JAVA_HOME=$JAVA_HOME"
+          chmod +x ./gradlew || true
+          ./gradlew wrapper --gradle-version 8.7 --distribution-type all
+          cat ./gradle/wrapper/gradle-wrapper.properties
+
+      - name: Show Gradle/AGP versions
+        working-directory: android
+        run: |
           ./gradlew -v || true
           grep -R --line-number "com.android.tools.build:gradle" . || true
 
-      - name: Gradle assembleDebug
+      - name: Assemble debug APK
         working-directory: android
         run: |
           chmod +x ./gradlew
@@ -52,8 +55,7 @@ jobs:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
-      # 실패시 로그도 남겨서 원인 추적 쉽게
-      - name: Upload Gradle logs on failure
+      - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
